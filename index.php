@@ -1,115 +1,92 @@
 <?php
-// Include data produk terpusat
-require_once 'products-data.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
-$cart_count = $_SESSION['cart_count'] ?? 0;
+require_once __DIR__ . '/app.php';
+
+$query = isset($_GET['q']) && is_string($_GET['q']) ? trim($_GET['q']) : '';
+$category = isset($_GET['kategori']) && is_string($_GET['kategori']) ? $_GET['kategori'] : 'Semua';
+$categories = product_categories();
+$products = array_filter($all_products, static function (array $product) use ($query, $category): bool {
+    $matchesQuery = $query === '' || stripos($product['title'] . ' ' . $product['description'], $query) !== false;
+    $matchesCategory = $category === 'Semua' || $product['category'] === $category;
+    return $matchesQuery && $matchesCategory;
+});
+$notice = flash();
 ?>
 <!doctype html>
 <html lang="id">
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Beranda - Kerajinan Kelapa</title>
-	<?php $ver = file_exists(__DIR__ . '/css/style.css') ? filemtime(__DIR__ . '/css/style.css') : time(); ?>
-	<link rel="stylesheet" href="css/style.css?v=<?php echo $ver; ?>">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Temukan kerajinan kelapa buatan pengrajin lokal untuk rumah yang lebih hangat dan berkarakter.">
+    <title>Ruang Kelapa — Kerajinan Lokal</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-	<header class="site-header">
-		<div class="container">
-			<div class="logo">
-				<!-- logo image (replaced inline SVG) -->
-				<img src="asset/logo.png" alt="Kerajinan Kelapa" class="logo-img" width="64" height="64">
-			</div>
+<?php render_header('home'); ?>
+<main>
+    <section class="hero wrap">
+        <div class="hero-copy">
+            <span class="eyebrow">Dari alam, untuk ruang yang lebih berarti</span>
+            <h1>Sentuhan alami.<br><em>Makna yang abadi.</em></h1>
+            <p>Kerajinan kelapa pilihan yang dibuat perlahan oleh pengrajin lokal. Hadirkan karakter alami di rumah Anda.</p>
+            <a class="button" href="#produk">Jelajahi koleksi <span aria-hidden="true">→</span></a>
+            <div class="hero-note"><span class="note-icon">✳</span><span><strong>Dibuat dengan tangan</strong><small>Setiap karya punya ceritanya sendiri</small></span></div>
+        </div>
+        <div class="hero-art" aria-label="Ilustrasi kerajinan kelapa">
+            <div class="sun-disc"></div>
+            <div class="hero-leaf leaf-one"></div><div class="hero-leaf leaf-two"></div>
+            <div class="hero-bowl"><span></span></div>
+            <div class="hero-caption">Karya alam <span>01 / 06</span></div>
+        </div>
+    </section>
 
-			<nav class="nav" aria-label="Main navigation">
-				<ul>
-					<li><a href="#" class="highlight">Beranda</a></li>
-					<li><a href="#">Produk</a></li>
-					<li><a href="#">Tentang Kami</a></li>
-				</ul>
-			</nav>
+    <section class="benefits wrap" aria-label="Keunggulan">
+        <div><span>01</span><strong>Material alami</strong><small>Memanfaatkan kelapa pilihan</small></div>
+        <div><span>02</span><strong>Buatan pengrajin</strong><small>Dikerjakan dengan perhatian</small></div>
+        <div><span>03</span><strong>Pesan dengan mudah</strong><small>Proses belanja yang jelas</small></div>
+    </section>
 
-			<div class="actions">
-				<a href="register.php" class="btn">Daftar</a>
-				<a href="login.php" class="btn login">Login</a>
-			</div>
-		</div>
+    <section class="catalog-section" id="produk">
+        <div class="wrap">
+            <div class="section-heading">
+                <div><span class="eyebrow">Koleksi pilihan</span><h2>Temukan karya favoritmu</h2><p>Produk unik dengan kehangatan material alami.</p></div>
+                <form class="search-form" method="get" action="index.php#produk">
+                    <label class="sr-only" for="search">Cari produk</label>
+                    <input id="search" type="search" name="q" value="<?= e($query) ?>" placeholder="Cari kerajinan...">
+                    <?php if ($category !== 'Semua'): ?><input type="hidden" name="kategori" value="<?= e($category) ?>"><?php endif; ?>
+                    <button type="submit" aria-label="Cari">Cari</button>
+                </form>
+            </div>
+            <div class="category-list" aria-label="Kategori produk">
+                <?php foreach ($categories as $label => $value): ?>
+                    <a class="<?= $category === $value ? 'selected' : '' ?>" href="index.php?<?= http_build_query(array_filter(['kategori' => $value, 'q' => $query], static fn($v) => $v !== '' && $v !== 'Semua')) ?>#produk"><?= e($label) ?></a>
+                <?php endforeach; ?>
+            </div>
+            <?php if ($notice !== ''): ?><div class="notice"><?= e($notice) ?></div><?php endif; ?>
+            <?php if ($products): ?>
+            <div class="product-grid">
+                <?php foreach ($products as $product): ?>
+                    <article class="product-card">
+                        <a class="product-art art-<?= (int)$product['id'] ?>" href="product-detail.php?id=<?= (int)$product['id'] ?>" aria-label="Lihat <?= e($product['title']) ?>"><span><?= e($product['category']) ?></span><i aria-hidden="true"></i></a>
+                        <div class="product-card-body">
+                            <div class="product-meta"><?= e($product['category']) ?><span>★ <?= e($product['rating']) ?></span></div>
+                            <h3><a href="product-detail.php?id=<?= (int)$product['id'] ?>"><?= e($product['title']) ?></a></h3>
+                            <div class="product-buy"><strong><?= rupiah(product_price($product)) ?></strong><a href="product-detail.php?id=<?= (int)$product['id'] ?>" aria-label="Lihat produk <?= e($product['title']) ?>">Lihat detail <span aria-hidden="true">↗</span></a></div>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?>
+                <div class="empty-state"><span>⌕</span><h3>Produk belum ditemukan</h3><p>Coba kata kunci atau kategori lain.</p><a class="text-link" href="index.php#produk">Hapus filter</a></div>
+            <?php endif; ?>
+        </div>
+    </section>
 
-		<div class="search-row">
-			<div class="search-inner">
-				<div class="search-box" role="search">
-					<svg class="Search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-						<path d="M21 21l-4.35-4.35" stroke="#777" stroke-width="2" stroke-linecap="round"/>
-						<circle cx="10.5" cy="10.5" r="5.5" stroke="#777" stroke-width="2"/>
-					</svg>
-					<input type="search" placeholder="Cari kerajinan" aria-label="Cari kerajinan" />
-				</div>
-
-				
-			</div>
-		</div>
-	</header>
-
-	<!-- Carousel / slider -->
-	<section class="carousel" aria-label="Promosi">
-		<div class="carousel-inner">
-			<div class="slides">
-				<div class="slide"><img src="figma/banner1.svg" alt="Promo 1"></div>
-				<div class="slide"><img src="figma/banner2.svg" alt="Promo 2"></div>
-				<div class="slide"><img src="figma/banner3.svg" alt="Promo 3"></div>
-			</div>
-			<button class="arrow prev" aria-label="Sebelumnya">◀</button>
-			<button class="arrow next" aria-label="Berikutnya">▶</button>
-			<div class="dots" role="tablist"></div>
-		</div>
-	</section>
-
-
-	<!-- Products (rendered from PHP array) -->
-	<section class="products" aria-label="Produk Populer">
-		<div class="heading">
-			<h3>Produk Populer</h3>
-			<small>Produk terbaik dari pengrajin lokal</small>
-		</div>
-		<div class="product-grid">
-			<?php foreach($all_products as $p): ?>
-				<div class="card-link">
-					<article class="card">
-						<a href="product-detail.php?id=<?php echo $p['id']; ?>" style="text-decoration:none;color:inherit;display:block">
-							<img src="<?php echo htmlspecialchars($p['image']); ?>" alt="<?php echo htmlspecialchars($p['title']); ?>">
-							<div class="title"><?php echo htmlspecialchars($p['title']); ?></div>
-							<div class="price"><?php echo htmlspecialchars($p['price']); ?></div>
-						</a>
-					<div style="margin-top:10px;display:flex;justify-content:center">
-						<a href="<?php echo empty($_SESSION['user_logged_in']) ? 'login.php' : 'cart.php?action=add&id=' . $p['id']; ?>" class="btn btn-add" style="padding:8px 12px;border-radius:8px">Tambah</a>
-					</div>
-					</article>
-				</div>
-			<?php endforeach; ?>
-		</div>
-		<a class="see-more" href="#">Masuk Untuk Lihat Lainnya</a>
-	</section>
-
-	<!-- Footer -->
-	<footer class="site-footer">
-		<div class="wrap">
-			<div class="footer-col">
-				<img src="asset/logo.png" alt="Kerajinan Kelapa" style="width:80px;display:block;margin-bottom:12px">
-				<p>Membawa keindahan alam Indonesia ke rumah Anda melalui kerajinan kelapa yang unik dan berkelanjutan.</p>
-			</div>
-			<div class="footer-col">
-				<h4>Hubungi kami</h4>
-				<p>Jl. Endik-Byeong KM.18, Endik<br>Email: hello@kerajinankelapa.com<br>Telp: +62 812 3456 7890</p>
-			</div>
-			<div class="footer-col">
-				<h4>Ikuti Kami</h4>
-				<p>Facebook · Instagram · YouTube</p>
-			</div>
-		</div>
-		<div class="footer-bottom">© 2025 KerajinanKelapa. Semua Hak Cipta Dilindungi.</div>
-	</footer>
-
-	<!-- slider script -->
-	<script src="js/slider.js"></script>
+    <section class="story-banner wrap">
+        <div class="story-mark">K</div>
+        <div><span class="eyebrow">Berbelanja lebih bermakna</span><h2>Keindahan yang tumbuh dari alam sekitar.</h2><p>Kami percaya bahan yang sederhana bisa menjadi karya istimewa ketika dipadukan dengan keterampilan dan kepedulian.</p></div>
+        <a class="button button-light" href="#tentang">Kenali Ruang Kelapa</a>
+    </section>
+</main>
+<?php render_footer(); ?>
 </body>
 </html>
